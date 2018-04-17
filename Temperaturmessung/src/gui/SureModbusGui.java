@@ -6,6 +6,7 @@ import javax.swing.JOptionPane;
 import jssc.SerialPort;
 import jssc.SerialPortException;
 import logging.Logger;
+import workers.SingleMeasurementWorker;
 
 /**
  *
@@ -108,6 +109,7 @@ public class SureModbusGui extends javax.swing.JFrame {
             jbutRefresh.setEnabled(false);
             jbutDisconnect.setEnabled(true);
             jbutConnect.setEnabled(false);
+            jbutSingleMeasurement.setEnabled(true);
             return;  //Damit er nicht unten durchfährt
         }
 
@@ -115,6 +117,10 @@ public class SureModbusGui extends javax.swing.JFrame {
             jcbSerialDevice.setEnabled(true);
             jbutConnect.setEnabled(true);
         }
+    }
+    
+    private void singleMeasurement() {
+        new MySingleMeasurementWorker().execute();
     }
 
     /**
@@ -273,7 +279,7 @@ public class SureModbusGui extends javax.swing.JFrame {
 
   private void jbutSingleMeasurementActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_jbutSingleMeasurementActionPerformed
   {//GEN-HEADEREND:event_jbutSingleMeasurementActionPerformed
-      // TODO add your handling code here:
+      singleMeasurement();
   }//GEN-LAST:event_jbutSingleMeasurementActionPerformed
 
   private void jbutContinousMeasurementActionPerformed(java.awt.event.ActionEvent evt)//GEN-FIRST:event_jbutContinousMeasurementActionPerformed
@@ -356,4 +362,21 @@ public class SureModbusGui extends javax.swing.JFrame {
   private javax.swing.JTextField jtfStatus;
   // End of variables declaration//GEN-END:variables
 
+  
+  
+  private class MySingleMeasurementWorker extends SingleMeasurementWorker {
+
+        @Override
+        protected void done() {
+            try {
+                double temp = get();
+                jlaTemperatur.setText(String.format("%.1f °C", temp));
+            } catch (Exception e) {
+                showThrowable(new Exception("Einzemessung gescheitert", e));
+            }
+        }
+        
+  }
+  
+  
 }
