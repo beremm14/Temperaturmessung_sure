@@ -38,7 +38,11 @@ public class SingleMeasurementWorker extends SwingWorker<Double, String> {
         TimeUnit.SECONDS.sleep(2);
         byte [] response = serialPort.readBytes();
         System.out.println(response.length);
-        return 22.5;
+        byte hb = response[3];
+        byte lb = response[4];
+        int t = (hb < 0 ? hb+256 : hb) * 256 + (lb < 0 ? lb+256 : lb);
+        
+        return t/256.0;
     }
     
 }
