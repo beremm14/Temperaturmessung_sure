@@ -3,6 +3,7 @@ package gui;
 import java.util.logging.Level;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JOptionPane;
+import jssc.SerialPort;
 import jssc.SerialPortException;
 import logging.Logger;
 
@@ -59,7 +60,13 @@ public class SureModbusGui extends javax.swing.JFrame {
     private void connectPort(String port) {
         serialPort = new jssc.SerialPort(port);
         try {
-            serialPort.openPort(); //Verbinden mit dem Port
+            if (serialPort.openPort() == false) { //Verbinden mit dem Port
+                throw new jssc.SerialPortException(port, "openPort", "return value false");
+            }
+            if (serialPort.setParams(SerialPort.BAUDRATE_57600, SerialPort.DATABITS_8, 
+                                     SerialPort.STOPBITS_2, SerialPort.PARITY_NONE) == false) {
+                throw new jssc.SerialPortException(port, "setParams", "return value false");
+            }
         } catch (Throwable ex) //Wenn man serielle Schnittstellen verwendet, werden JNI-Fehler als Errors ausgegeben, daher muss man ALLES fangen!!!
         {
             showThrowable(new Exception("Serielle Schnittstelle kann nicht geöffnet werden", ex));
@@ -76,7 +83,9 @@ public class SureModbusGui extends javax.swing.JFrame {
         }
 
         try {
-            serialPort.closePort();
+            if (serialPort.closePort() == false) {
+                throw new jssc.SerialPortException(null, "closePort", "return value false");
+            }
         } catch (Throwable th) {
             showThrowable(new Exception("Serielle Schnittstelle kann nicht geschlossen werden"));
         } finally {
