@@ -1,8 +1,12 @@
 package gui;
 
+import java.awt.Cursor;
+import java.util.List;
 import java.util.logging.Level;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.SwingWorker;
 import jssc.SerialPort;
 import jssc.SerialPortException;
 import logging.Logger;
@@ -17,11 +21,13 @@ public class SureModbusGui extends javax.swing.JFrame {
     private static final Logger LOG = Logger.getLogger(SureModbusGui.class.getName());
 
     private jssc.SerialPort serialPort;  //Ob ein Port geöffnet wurde
+    private SwingWorker activeWorker;
 
     public SureModbusGui() {
         initComponents();
         setLocationRelativeTo(null);
         updateSwingControls();
+        jlaTemperatur.setText("--");
         refrehPorts();
     }
 
@@ -35,6 +41,7 @@ public class SureModbusGui extends javax.swing.JFrame {
                 msg,
                 "Fehler aufgetreten...",
                 JOptionPane.ERROR_MESSAGE);
+        jtfStatus.setText("Fehler aufgetreten");
     }
 
     private void refrehPorts() {
@@ -64,8 +71,8 @@ public class SureModbusGui extends javax.swing.JFrame {
             if (serialPort.openPort() == false) { //Verbinden mit dem Port
                 throw new jssc.SerialPortException(port, "openPort", "return value false");
             }
-            if (serialPort.setParams(SerialPort.BAUDRATE_57600, SerialPort.DATABITS_8, 
-                                     SerialPort.STOPBITS_2, SerialPort.PARITY_NONE) == false) {
+            if (serialPort.setParams(SerialPort.BAUDRATE_57600, SerialPort.DATABITS_8,
+                    SerialPort.STOPBITS_2, SerialPort.PARITY_NONE) == false) {
                 throw new jssc.SerialPortException(port, "setParams", "return value false");
             }
         } catch (Throwable ex) //Wenn man serielle Schnittstellen verwendet, werden JNI-Fehler als Errors ausgegeben, daher muss man ALLES fangen!!!
@@ -96,7 +103,6 @@ public class SureModbusGui extends javax.swing.JFrame {
     }
 
     private void updateSwingControls() {
-        jlaTemperatur.setText("--");
         jbutRefresh.setEnabled(true);
         jbutConnect.setEnabled(false);
         jbutDisconnect.setEnabled(false);
@@ -117,10 +123,27 @@ public class SureModbusGui extends javax.swing.JFrame {
             jcbSerialDevice.setEnabled(true);
             jbutConnect.setEnabled(true);
         }
+
+        if (activeWorker != null) {
+            jbutRefresh.setEnabled(false);
+            jbutConnect.setEnabled(false);
+            jbutDisconnect.setEnabled(false);
+            jcbSerialDevice.setEnabled(false);
+            jbutSingleMeasurement.setEnabled(false);
+            jbutContinousMeasurement.setEnabled(false);
+            jbutStopMeasurement.setEnabled(false);
+            jlaTemperatur.setEnabled(false);
+            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        } else {
+            setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+            jlaTemperatur.setEnabled(true);
+        }
     }
-    
+
     private void singleMeasurement() {
-        new MySingleMeasurementWorker().execute();
+        activeWorker = new MySingleMeasurementWorker(serialPort);
+        activeWorker.execute();
+        updateSwingControls();
     }
 
     /**
@@ -362,21 +385,32 @@ public class SureModbusGui extends javax.swing.JFrame {
   private javax.swing.JTextField jtfStatus;
   // End of variables declaration//GEN-END:variables
 
-  
-  
-  private class MySingleMeasurementWorker extends SingleMeasurementWorker {
+    private class MySingleMeasurementWorker extends SingleMeasurementWorker {
+
+        public MySingleMeasurementWorker(SerialPort serialPort) {
+            super(serialPort);
+        }
 
         @Override
         protected void done() {
             try {
                 double temp = get();
                 jlaTemperatur.setText(String.format("%.1f °C", temp));
+                jtfStatus.setText(null);
             } catch (Exception e) {
                 showThrowable(new Exception("Einzemessung gescheitert", e));
+            } finally {
+                activeWorker = null;
+                updateSwingControls();
             }
         }
+
+        @Override
+        protected void process(List<String> chunks) {
+            jtfStatus.setText(chunks.get(chunks.size()-1)); //String aus Publish
+        }
         
-  }
-  
-  
+    }
+    
+    
 }
